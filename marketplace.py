@@ -17,7 +17,22 @@ class Marketplace:
         matches = self.match_offers_requests(offers, requests)
         self.execute_transaction(matches)
         
+        print(f"Tick {self.tick}:")
+        print("Offers:", offers)
+        print("Requests:", requests)
+        
+        # Create a map to check which buyers had successful trades this tick
+        buyers_traded = {buyer.id: False for buyer in self.buyers}
+        for match in matches:
+            buyers_traded[match['buyer id']] = True
+        
+        # Let buyers adjust their price limits based on success/failure
+        for buyer in self.buyers:
+            market_feedback = {'successful_trade': buyers_traded[buyer.id]}
+            buyer.maybe_adjust_price_limit(market_feedback)
+        
         self.tick += 1
+
         
     
     # Asking all sellers for their offers
@@ -74,34 +89,40 @@ class Marketplace:
         
 
     def execute_transaction(self, matches):
-        # Updating buyer-seller state and transactions
-        
         for m in matches:
             buyer = self.get_agent_by_id(m['buyer id'], self.buyers)
             seller = self.get_agent_by_id(m['seller id'], self.sellers)
             
-            total_cost = m['quantity'] * m['price_per_unit']
+            requested_quantity = m['quantity']
+            price_per_unit = m['price_per_unit']
+            total_cost = requested_quantity * price_per_unit
             
             if buyer.budget < total_cost:
-                affordable_quantity = int(buyer.budget // m['price_per_unit'])
+                affordable_quantity = int(buyer.budget // price_per_unit)
                 
-                # Skip transaction entirely (cant afford even 1 unit)
                 if affordable_quantity == 0:
+                    # Can't afford even 1 unit, skip this transaction
                     continue
-            
-                # Adjusting total cost & quantity to affordable amt
-                total_cost = affordable_quantity * m['price_per_unit']
-                quantity = affordable_quantity
-            
-            else:
-                quantity = m['quantity']
                 
-            buyer.budget -= total_cost
-            buyer.inventory += quantity
+                quantity = affordable_quantity
+                total_cost = quantity * price_per_unit
+            else:
+                quantity = requested_quantity
             
-            seller.inventory -= quantity
-            seller.total_revenue += total_cost
+            trade_info = {'quantity': quantity, 'price_per_unit': price_per_unit}
+            buyer.update_after_trade(trade_info)
             
+            seller.process_sales(quantity, price_per_unit)
+            
+            self.history.append({
+                'tick': self.tick,
+                'buyer_id': buyer.id,
+                'seller_id': seller.id,
+                'quantity': quantity,
+                'price_per_unit': price_per_unit,
+                'total_cost': total_cost
+            })
+
             
     def get_agent_by_id(self, agent_id, agent_list):
         for agent in agent_list:

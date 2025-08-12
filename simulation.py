@@ -13,9 +13,11 @@ def main():
     
     
     sellers = [
-        SellerAgent(agent_id=101, inventory=15, min_price=40, starting_price=45, max_per_tick=5),
-        SellerAgent(agent_id=102, inventory=20, min_price=35, starting_price=40, max_per_tick=7),
-        SellerAgent(agent_id=103, inventory=10, min_price=45, starting_price=50, max_per_tick=4),
+        SellerAgent(agent_id=101, inventory=15, min_price=40, starting_price=45, max_per_tick=10),
+        SellerAgent(agent_id=102, inventory=20, min_price=35, starting_price=40, max_per_tick=8),
+        SellerAgent(agent_id=103, inventory=10, min_price=45, starting_price=50, max_per_tick=9),
+        SellerAgent(agent_id=104, inventory=90, min_price=25, starting_price=30, max_per_tick=20),
+        SellerAgent(agent_id=105, inventory=130, min_price=15, starting_price=10, max_per_tick=15),
     ]
     
     # initializing marketplace
