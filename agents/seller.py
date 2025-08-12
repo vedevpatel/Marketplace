@@ -26,7 +26,7 @@ class SellerAgent:
             offer = {
                 'agent id': self.id,
                 'quantity': quantity_to_offer,
-                'price per unit': self.min_price_per_unit
+                'price_per_unit': self.min_price_per_unit
             }
             
         return offer

@@ -15,7 +15,7 @@ class Marketplace:
         requests = self.collect_requests()
         
         matches = self.match_offers_requests(offers, requests)
-        self.execute_transactions(matches)
+        self.execute_transaction(matches)
         
         self.tick += 1
         
@@ -47,13 +47,13 @@ class Marketplace:
         matches = []
         
         # matching cheapest offers to highest paying buyers
-        offers_sorted = sorted(offers, key=itemgetter('price per unit'))
-        requests_sorted = sorted(requests, key=itemgetter('max price per unit'))
+        offers_sorted = sorted(offers, key=itemgetter('price_per_unit'))
+        requests_sorted = sorted(requests, key=itemgetter('price_per_unit'))
         
         # Buyer should be willing to pay the seller's price per unit, and seller must have inventory
         for reqs in requests_sorted:
             for offs in offers_sorted:
-                if reqs['price per unit'] >= offs['price per unit'] and offs['quantity'] > 0:
+                if reqs['price_per_unit'] >= offs['price_per_unit'] and offs['quantity'] > 0:
                     quantity = min(reqs['quantity'], offs['quantity'])
 
                     # if so, add a match to the record
@@ -61,7 +61,7 @@ class Marketplace:
                         'buyer id': reqs['agent id'],
                         'seller id': offs['agent id'],
                         'quantity': quantity,
-                        'price per unit': offs['price per unit']
+                        'price_per_unit': offs['price_per_unit']
                     })
 
                     # rightly decrease the respective quantities
@@ -80,17 +80,17 @@ class Marketplace:
             buyer = self.get_agent_by_id(m['buyer id'], self.buyers)
             seller = self.get_agent_by_id(m['seller id'], self.sellers)
             
-            total_cost = m['quantity'] * m['price per unit']
+            total_cost = m['quantity'] * m['price_per_unit']
             
             if buyer.budget < total_cost:
-                affordable_quantity = int(buyer.budget // m['price per unit'])
+                affordable_quantity = int(buyer.budget // m['price_per_unit'])
                 
                 # Skip transaction entirely (cant afford even 1 unit)
                 if affordable_quantity == 0:
                     continue
             
                 # Adjusting total cost & quantity to affordable amt
-                total_cost = affordable_quantity * m['price per unit']
+                total_cost = affordable_quantity * m['price_per_unit']
                 quantity = affordable_quantity
             
             else:
