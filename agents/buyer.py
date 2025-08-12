@@ -1,3 +1,9 @@
+# TODO [RL] Replace static selection logic with RL-driven offer selection
+# TODO [RL] Store state-action-reward tuples for learning
+# TODO [RL] Define reward signal (e.g., satisfaction, utility from purchase)
+# TODO [RL] Add policy update method for learning after each episode
+
+
 class BuyerAgent:
     def __init__(self, agent_id, budget, demand, price_limit):
         self.id = agent_id
