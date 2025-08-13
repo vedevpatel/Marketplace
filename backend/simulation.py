@@ -32,7 +32,7 @@ def run_simulation_tick():
             for b in buyers
         ],
         "sellers": [
-            {"id": s.id, "inventory": s.inventory, "revenue": s.total_revenue}
+            {"id": s.id, "inventory": s.inventory, "revenue": s.total_revenue, "price": s.min_price_per_unit}
             for s in sellers
         ]
     }
