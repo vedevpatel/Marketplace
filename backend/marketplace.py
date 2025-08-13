@@ -63,7 +63,7 @@ class Marketplace:
         
         # matching cheapest offers to highest paying buyers
         offers_sorted = sorted(offers, key=itemgetter('price_per_unit'))
-        requests_sorted = sorted(requests, key=itemgetter('price_per_unit'))
+        requests_sorted = sorted(requests, key=itemgetter('price_per_unit'), reverse=True)
         
         # Buyer should be willing to pay the seller's price per unit, and seller must have inventory
         for reqs in requests_sorted:
