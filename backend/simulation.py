@@ -1,29 +1,60 @@
-# simulation.py
+import random
 from agents import BuyerAgent, SellerAgent
 from marketplace import Marketplace
 
-# Create buyers and sellers once
-buyers = [
-    BuyerAgent(agent_id=1, budget=5000, demand=100, price_limit=55),
-    BuyerAgent(agent_id=2, budget=5000, demand=100, price_limit=60),
-    BuyerAgent(agent_id=3, budget=5000, demand=100, price_limit=50),
-    BuyerAgent(agent_id=4, budget=5000, demand=100, price_limit=45),
-    BuyerAgent(agent_id=5, budget=5000, demand=100, price_limit=40),
-]
 
-sellers = [
-    SellerAgent(agent_id=101, inventory=20, min_price=40, starting_price=45, max_per_tick=5),
-    SellerAgent(agent_id=102, inventory=20, min_price=35, starting_price=40, max_per_tick=5),
-    SellerAgent(agent_id=103, inventory=20, min_price=45, starting_price=50, max_per_tick=5),
-    SellerAgent(agent_id=104, inventory=20, min_price=25, starting_price=30, max_per_tick=5),
-    SellerAgent(agent_id=105, inventory=20, min_price=15, starting_price=20, max_per_tick=5),
-]
+def generate_agents(num_buyers, num_sellers):
+    # creates lists of buyers and sellers with random parameters 
+    buyers = []
+    sellers = []
+    
+    # Generate Buyers
+    for i in range(num_buyers):
+        # Most buyers will have a price limit around $50, with some variance
+        price_limit = round(random.gauss(50, 10), 2)
+        if price_limit < 1: price_limit = 1 # Ensure price is not negative
+        
+        buyers.append(
+            BuyerAgent(
+                agent_id=i + 1,
+                budget=random.randint(500, 5000),
+                demand=random.randint(50, 200),
+                price_limit=price_limit
+            )
+        )
+        
+    # Generate Sellers
+    for i in range(num_sellers):
+        min_price = random.randint(10, 40) # Seller's cost basis
+        # Starting price is a 10-50% markup on their cost
+        starting_price = round(min_price * random.uniform(1.1, 1.5), 2)
 
-# Create the marketplace globally
+        sellers.append(
+            SellerAgent(
+                agent_id=i + 1001, # Using a different ID range for sellers
+                inventory=random.randint(20, 100),
+                min_price=min_price,
+                starting_price=starting_price,
+                max_per_tick=random.randint(5, 15)
+            )
+        )
+        
+    return buyers, sellers
+
+
+# Setting market size
+NUM_BUYERS = 200
+NUM_SELLERS = 50
+
+# Creating agent populations
+buyers, sellers = generate_agents(NUM_BUYERS, NUM_SELLERS)
+
+# Create the marketplace globally with the generated agents
 market = Marketplace(buyers, sellers)
 
+
 def run_simulation_tick():
-    """Run the simulation for a single tick and return the latest data."""
+    # Runs simulation for a single tick and return the latest data."""
     market.run_market(num_ticks=1)  # Advance by 1 tick
     last_tick_data = {
         "transactions": market.history[-1] if market.history else [],
