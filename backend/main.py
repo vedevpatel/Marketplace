@@ -1,10 +1,7 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from backend.simulation import run_simulation_tick
+from simulation import run_simulation_tick
 
 
 app = FastAPI()
