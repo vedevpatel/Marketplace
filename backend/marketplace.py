@@ -91,7 +91,20 @@ class Marketplace:
             price_per_unit = m['price_per_unit']
             total_cost = quantity * price_per_unit
 
+            # --- DEBUGGING PRINTS START HERE ---
+            # Print details only for high-priced sellers to avoid spamming the log
+            if price_per_unit > 1000:
+                print("\n--- [DEBUG] High-Priced Transaction Check ---")
+                print(f"[DEBUG] Match Details: Buyer {buyer.id} -> Seller {seller.id}")
+                print(f"[DEBUG] Seller Price: ${price_per_unit:,.2f} | Quantity: {quantity}")
+                print(f"[DEBUG] Calculated Total Cost: ${total_cost:,.2f}")
+                print(f"[DEBUG] Buyer's Budget BEFORE check: ${buyer.budget:,.2f}")
+            # --- DEBUGGING PRINTS END HERE ---
+
             if buyer.budget >= total_cost and seller.inventory >= quantity:
+                if price_per_unit > 1000:
+                    print(f"[DEBUG] RESULT: Budget check PASSED. This is the BUG.")
+                
                 trade_info = {'quantity': quantity, 'price_per_unit': price_per_unit}
                 buyer.update_after_trade(trade_info)
                 seller.process_sales(quantity, price_per_unit)
@@ -104,6 +117,9 @@ class Marketplace:
                     'price_per_unit': price_per_unit,
                     'total_cost': total_cost
                 })
+            else:
+                if price_per_unit > 1000:
+                    print(f"[DEBUG] RESULT: Budget check FAILED. Transaction skipped (Correct behavior).")
 
     def get_agent_by_id(self, agent_id, agent_list):
         for agent in agent_list:

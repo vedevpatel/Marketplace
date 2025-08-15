@@ -20,6 +20,7 @@ class SellerAgent:
         self.restock_cooldown = 0 # ticks to wait before restocking
         self.restock_period = 20 # how long the cooldown is
         self.current_price = starting_price
+        self.ticks_with_no_sales = 0
         
         # RL Action Space - 5 possible actions
         self.actions = [-0.10, -0.05, 0, 0.05, 0.10] # dec. price by 10%, 5%...
@@ -52,21 +53,7 @@ class SellerAgent:
         
     # Willing to sell X units at $Y each 
     def decide_offer(self, average_market_price):
-        state = self.get_state(average_market_price)
-        
-        # think
-        action_index = self.choose_action(state)
-        
-        # act
-        price_change_percent = self.actions[action_index]
-        self.current_price *= (1 + price_change_percent)
-        
-        # clamping price to minimum
-        if self.current_price < self.min_price_per_unit:
-            self.current_price = self.min_price_per_unit
-            
-        # resetting sales counter for next tick
-        self.last_tick_sales = 0
+        self.adjust_price(average_market_price)        
         
         # restocking logic        
         if self.inventory <= 0:
@@ -90,32 +77,35 @@ class SellerAgent:
     
     
     def adjust_price(self, average_market_price):
-        """Adjust price and handle cooldown for the next tick."""
-        # Decrement cooldown timer each tick
-        if self.restock_cooldown > 0:
-            self.restock_cooldown -= 1
+        # --- Bubble Pop Logic ---
+        # If we haven't sold anything for 10 ticks and our price is
+        # more than 3x the market average, we're in a bubble. Pop it.
+        if self.ticks_with_no_sales > 10 and self.current_price > average_market_price * 3 and average_market_price > 0:
+            self.current_price = average_market_price * 1.1 # Reset to just above average
+            self.ticks_with_no_sales = 0 # Reset counter
+            return # End the adjustment for this tick
 
-        # Calculate what percentage of the offered inventory was sold
+        # --- Standard Proportional Pricing ---
         if self.max_per_tick > 0:
             sell_through_rate = self.last_tick_sales / self.max_per_tick
         else:
             sell_through_rate = 0
 
-        # Create a dynamic adjustment factor.
-        # A 100% sell-through (rate=1.0) increases price by 5%.
-        # A 0% sell-through (rate=0.0) decreases price by 5%.
-        # A 50% sell-through (rate=0.5) keeps the price the same.
-        adjustment_factor = 1 + (sell_through_rate - 0.5) * 0.1  # 0.1 is the sensitivity
+        adjustment_factor = 1 + (sell_through_rate - 0.5) * 0.1
 
-        # Only apply the adjustment if there were sales or if we have inventory
+        # Only adjust if there was activity or we have stock to sell
         if self.last_tick_sales > 0 or self.inventory > 0:
             self.current_price *= adjustment_factor
 
-        # Clamp price to the minimum
+        # Clamp price to the minimum and reset counters
         if self.current_price < self.min_price_per_unit:
             self.current_price = self.min_price_per_unit
         
-        # Reset sales counter for the next tick
+        if self.last_tick_sales == 0:
+            self.ticks_with_no_sales += 1
+        else:
+            self.ticks_with_no_sales = 0
+            
         self.last_tick_sales = 0
             
     # Updating revenue and tracking revenue after a sale

@@ -1,8 +1,12 @@
 version: '3.8'
 
+# In docker-compose.yml
+
 services:
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     volumes:

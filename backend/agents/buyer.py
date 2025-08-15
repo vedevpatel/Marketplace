@@ -100,6 +100,8 @@ class BuyerAgent:
         else:
             pass # On success, do nothing
         
+        if self.current_price_limit > self.budget:
+            self.current_price_limit = self.budget
     
     def is_active(self):
         return (self.demand > 0 and self.budget > 0)
