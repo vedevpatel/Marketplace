@@ -32,7 +32,7 @@ def generate_agents(num_buyers, num_sellers):
         sellers.append(
             SellerAgent(
                 agent_id=i + 1001, # Using a different ID range for sellers
-                inventory=random.randint(20, 100),
+                inventory=random.randint(70, 300),
                 min_price=min_price,
                 starting_price=starting_price,
                 max_per_tick=random.randint(5, 15)
@@ -44,7 +44,7 @@ def generate_agents(num_buyers, num_sellers):
 
 # Setting market size
 NUM_BUYERS = 200
-NUM_SELLERS = 50
+NUM_SELLERS = 10
 
 # Creating agent populations
 buyers, sellers = generate_agents(NUM_BUYERS, NUM_SELLERS)
@@ -55,16 +55,19 @@ market = Marketplace(buyers, sellers)
 
 def run_simulation_tick():
     # Runs simulation for a single tick and return the latest data."""
-    market.run_market(num_ticks=1)  # Advance by 1 tick
+    offers, requests, matches = market.run_tick()  
     last_tick_data = {
-        "transactions": market.history[-1] if market.history else [],
+        "tick": market.tick,
+        "transactions": matches,
+        "offers": offers,
+        "requests": requests,
         "buyers": [
-            {"id": b.id, "budget": b.budget, "inventory": b.inventory, "demand": b.demand}
-            for b in buyers
+            {"id": b.id, "budget": round(b.budget, 2), "inventory": b.inventory, "demand": b.demand}
+            for b in market.buyers
         ],
         "sellers": [
-            {"id": s.id, "inventory": s.inventory, "revenue": s.total_revenue, "price": s.min_price_per_unit}
-            for s in sellers
+            {"id": s.id, "inventory": s.inventory, "price": round(s.current_price, 2), "revenue": round(s.total_revenue, 2)}
+            for s in market.sellers
         ]
     }
     return last_tick_data

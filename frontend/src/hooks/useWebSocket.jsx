@@ -1,24 +1,35 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from 'react';
 
 export default function useWebSocket(url) {
-    const [data, setData] = useState(null);
+  const [marketData, setMarketData] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-    useEffect(() => {
-        const ws = new WebSocket (url); // creating connection
+  useEffect(() => {
+    const ws = new WebSocket(url);
 
-        // Event handler for incoming messages
-        ws.onmessage = (event) => {
-            setData(JSON.parse(event.data)); // parse & update state
-        };
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+      setIsConnected(true);
+    };
 
-        // Event handler for connection closure
-        ws.onclose = () => {
-            console.log("WebSocket closed");
-        };
+    ws.onmessage = (event) => {
+      setMarketData(JSON.parse(event.data));
+    };
 
-        // Cleanup func. to close connection on unmount
-        return () => ws.close();
-    }, [url]);
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+      setIsConnected(false);
+    };
 
-    return data;
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setIsConnected(false);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [url]);
+
+  return { marketData, isConnected };
 }

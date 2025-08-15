@@ -2,7 +2,7 @@
 # TODO [RL] Store state-action-reward tuples for learning
 # TODO [RL] Define reward signal (e.g., satisfaction, utility from purchase)
 # TODO [RL] Add policy update method for learning after each episode
-
+import random
 
 class BuyerAgent:
     def __init__(self, agent_id, budget, demand, price_limit):
@@ -59,13 +59,16 @@ class BuyerAgent:
     """
     
     def maybe_adjust_price_limit(self, market_feedback):
-        if market_feedback['successful_trade'] == False:
-            # Decrease price limit by 5%
-            self.current_price_limit *= 0.95
-            
+        # If trade failed, there's a 20% chance the buyer gets impatient 
+        # and increases their price limit by 5% to be more competitive.
+        if not market_feedback['successful_trade']:
+            if random.random() < 0.2: 
+                self.current_price_limit *= 1.05
+        # If trade was successful, there's a 10% chance the buyer will try 
+        # to find a better deal next time by lowering their limit slightly.
         else:
-            # Maintaining for now
-            pass
+            if random.random() < 0.1:
+                self.current_price_limit *= 0.98
          
     
     def is_active(self):

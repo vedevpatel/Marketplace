@@ -1,3 +1,5 @@
+import traceback
+
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -28,9 +30,18 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = run_simulation_tick()
-            # Sending new data to frontend
-            await websocket.send_json(data)
+            try:
+                # Sending new data to frontend
+                await websocket.send_json(data)
+            except Exception:
+                break
+            
             await asyncio.sleep(1) # 1 tick per second
             
-    except Exception:
+    except Exception as e:
+        print(f"Error: {e}")
+        traceback.print_exc()
+        
+    finally:
+        print("Connection closed.")
         clients.remove(websocket)
