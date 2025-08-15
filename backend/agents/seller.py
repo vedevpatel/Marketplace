@@ -21,18 +21,64 @@ class SellerAgent:
         self.restock_period = 20 # how long the cooldown is
         self.current_price = starting_price
         
+        # RL Action Space - 5 possible actions
+        self.actions = [-0.10, -0.05, 0, 0.05, 0.10] # dec. price by 10%, 5%...
+        
+    def get_state(self, average_market_price):
+        # gathers info into state representation
+        # normalizing inventory vals
+        normalized_inventory = self.inventory / self.initial_inventory if self.initial_inventory > 0 else 0
+        
+        # normalize relative to market avg
+        normalized_price = self.current_price / average_market_price if average_market_price > 0 else 1
+        
+        return [normalized_inventory, normalized_price]
+    
+    
+    def choose_action(self, state):
+        # agent brain
+        
+        # 1. if we sold max, try to raise price
+        if self.last_tick_sales >= self.max_per_tick:
+            return 4 # index for 10% price hike
+        
+        # 2. if we have inventory but sold nothing, lower price
+        if self.last_tick_sales == 0 and self.inventory > 0:
+            return 1 # 5% price decrease
+        
+        # otherwise, make no change
+        return 2
+    
         
     # Willing to sell X units at $Y each 
-    def decide_offer(self):
+    def decide_offer(self, average_market_price):
+        state = self.get_state(average_market_price)
+        
+        # think
+        action_index = self.choose_action(state)
+        
+        # act
+        price_change_percent = self.actions[action_index]
+        self.current_price *= (1 + price_change_percent)
+        
+        # clamping price to minimum
+        if self.current_price < self.min_price_per_unit:
+            self.current_price = self.min_price_per_unit
+            
+        # resetting sales counter for next tick
+        self.last_tick_sales = 0
+        
+        # restocking logic        
         if self.inventory <= 0:
             if self.restock_cooldown > 0:
+                self.restock_cooldown -= 1
                 return None
             else:
                 # restock arrived
                 self.inventory = self.initial_inventory
                 self.restock_cooldown = self.restock_period
     
-        
+        # creating offer
         quantity_to_offer = min(self.inventory, self.max_per_tick)         
         offer = {
             'agent id': self.id,
@@ -75,8 +121,11 @@ class SellerAgent:
     # Updating revenue and tracking revenue after a sale
     def process_sales(self, quantity_sold, sale_price_per_unit):
         self.inventory -= quantity_sold
-        self.total_revenue += quantity_sold * sale_price_per_unit
+        revenue_this_tick = quantity_sold * sale_price_per_unit
+        self.total_revenue += revenue_this_tick
         self.last_tick_sales += quantity_sold
+        
+        reward = revenue_this_tick
         
     
     def is_active(self):

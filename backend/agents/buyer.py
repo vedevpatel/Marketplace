@@ -11,21 +11,45 @@ class BuyerAgent:
         self.demand = demand
         self.current_price_limit = price_limit
         self.inventory = 0
+        self.income_per_tick = random.randint(5,20)
+        # buyer consumes 1-5% of inventory each tick
+        self.consumption_rate = random.uniform(0.01, 0.05)
         
-    def decide_bid(self):
-        # Calculating units a buyer can afford given current price limit
-        max_affordable_quantity = int(self.budget // self.current_price_limit)
+    def decide_bid(self, available_offers):
+        """
+        Smarter buyer logic:
+        1. Filters for affordable offers based on price limit.
+        2. Sorts them to find the best deal.
+        3. Decides a quantity based on budget, demand, and seller inventory.
+        """
+        if not available_offers:
+            return None
+
+        # 1. Filter for offers the buyer is willing to consider
+        affordable_offers = [o for o in available_offers if o['price_per_unit'] <= self.current_price_limit]
         
-        # Determining units a buyer actually wants (choosing minimum to avoid overspending)
-        desired_quantity = min(self.demand, max_affordable_quantity)
+        if not affordable_offers:
+            return None # Nothing is cheap enough
+
+        # 2. Sort to find the best deal (cheapest price first)
+        best_offers = sorted(affordable_offers, key=lambda x: x['price_per_unit'])
+        
+        chosen_offer = best_offers[0]
+        price = chosen_offer['price_per_unit']
+
+        # 3. Decide how much to buy
+        if price <= 0: return None # Avoid division by zero
+        
+        quantity_they_can_afford = int(self.budget // price)
+        quantity_to_bid = min(self.demand, chosen_offer['quantity'], quantity_they_can_afford)
         
         # If unaffordable, skip bidding
-        if (desired_quantity <= 0):
+        if quantity_to_bid <= 0:
             return None
         
         bid = {
             'agent id': self.id,
-            'quantity': desired_quantity,
+            'quantity': quantity_to_bid,
             'price_per_unit': self.current_price_limit
         }
         # Return the bid offer with quantity and price
@@ -59,17 +83,23 @@ class BuyerAgent:
     """
     
     def maybe_adjust_price_limit(self, market_feedback):
-        # If trade failed, there's a 20% chance the buyer gets impatient 
-        # and increases their price limit by 5% to be more competitive.
+        self.budget += self.income_per_tick
+        
+         # Buyer consumes a portion of their inventory each tick
+        if self.inventory > 0:
+            consumed_amount = round(self.inventory * self.consumption_rate)
+            if consumed_amount > 0:
+                self.inventory -= consumed_amount
+                # Consumption replenishes demand
+                self.demand += consumed_amount
+
+        # If trade failed, the buyer gets more impatient...
         if not market_feedback['successful_trade']:
-            if random.random() < 0.2: 
+            if random.random() < 0.5: 
                 self.current_price_limit *= 1.05
-        # If trade was successful, there's a 10% chance the buyer will try 
-        # to find a better deal next time by lowering their limit slightly.
         else:
-            if random.random() < 0.1:
-                self.current_price_limit *= 0.98
-         
+            pass # On success, do nothing
+        
     
     def is_active(self):
         return (self.demand > 0 and self.budget > 0)

@@ -10,8 +10,8 @@ class Marketplace:
         self.average_price = 0
 
     def run_tick(self):
-        offers = self.collect_offers()
-        requests = self.collect_requests()
+        offers = self.collect_offers(self.average_price)
+        requests = self.collect_requests(offers)
         
         matches = self.match_offers_requests(offers, requests)
         self.execute_transaction(matches)
@@ -27,29 +27,25 @@ class Marketplace:
         for buyer in self.buyers:
             market_feedback = {'successful_trade': buyers_traded[buyer.id]}
             buyer.maybe_adjust_price_limit(market_feedback)
-            
-        for seller in self.sellers:
-            if hasattr(seller, 'adjust_price'):
-                seller.adjust_price(self.average_price)
         
         self.tick += 1
         
         return offers, requests, matches
 
-    def collect_offers(self):
+    def collect_offers(self, average_price):
         offers = []
         for seller in self.sellers:
             if seller.is_active():
-                offer = seller.decide_offer()
+                offer = seller.decide_offer(average_price)
                 if offer:
                     offers.append(offer)
         return offers
 
-    def collect_requests(self):
+    def collect_requests(self, offers):
         requests = []
         for buyer in self.buyers:
             if buyer.is_active():
-                request = buyer.decide_bid()
+                request = buyer.decide_bid(offers)
                 if request:
                     requests.append(request)
         return requests

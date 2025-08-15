@@ -43,7 +43,7 @@ def generate_agents(num_buyers, num_sellers):
 
 
 # Setting market size
-NUM_BUYERS = 200
+NUM_BUYERS = 20
 NUM_SELLERS = 10
 
 # Creating agent populations
