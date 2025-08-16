@@ -11,6 +11,15 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    # Add this entire 'deploy' section
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   
   frontend:
     build: ./frontend

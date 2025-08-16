@@ -1,90 +1,127 @@
+import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-import numpy as np
+
+import pettingzoo
+from pettingzoo.utils import parallel_to_aec, wrappers as pz_wrappers
+
+from supersuit import pettingzoo_env_to_vec_env_v1, concat_vec_envs_v1
+
 from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import VecMonitor
+from stable_baselines3.common.callbacks import CheckpointCallback
+
+# Your simulation classes
 from simulation import generate_agents, Marketplace
-from agents.seller import SellerAgent
 
 
-class MarketPlaceEnv(gym.Env):
-    def __init__(self, num_buyers, num_other_sellers):
-        super(MarketPlaceEnv, self).__init__()
-        
+# 1) PettingZoo Environment
+class MarketplaceEnv(pettingzoo.ParallelEnv):
+    metadata = {"render_modes": ["human"], "name": "marketplace-v0"}
+
+    def __init__(self, num_buyers: int, num_sellers: int):
+        super().__init__()
         self.num_buyers = num_buyers
-        self.num_other_sellers = num_other_sellers
-        
-        # Action space for RL Agent
-        # 5 actions: price changes of -10%, -5%, 0%, 5%, 10%
-        self.action_space = spaces.Discrete(5)
-        
-        # Observation Space (state)
-        # [normalized_inventory, normalized_price]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)
-        
+        self.num_sellers = num_sellers
+        self.render_mode = "human"
+
+        # Agent identifiers
+        self.agents = [f"seller_{i}" for i in range(self.num_sellers)]
+        self.possible_agents = self.agents[:]
+
+    # Define spaces as methods, not attributes in __init__
+    def observation_space(self, agent):
+        # State: [normalized_inventory, normalized_price]
+        return spaces.Box(low=0.0, high=np.inf, shape=(2,), dtype=np.float32)
+
+    def action_space(self, agent):
+        # 5 actions: price change of -10%, -5%, 0, +5%, +10%
+        return spaces.Discrete(5)
+
     def reset(self, seed=None, options=None):
-        # Generate agents for new episode
-        buyers, other_sellers = generate_agents(self.num_buyers, self.num_other_sellers)
-        
-        # making a single RL seller agent
-        self.rl_agent = SellerAgent(
-            agent_id=9999, 
-            inventory=100,
-            min_price=10,
-            starting_price=30,
-            max_per_tick=10
-        )
-        
-        all_sellers = other_sellers + [self.rl_agent]
-        
-        # create the marketplace for this episode
-        self.market = Marketplace(buyers, all_sellers)
+        self.buyers, self.sellers = generate_agents(self.num_buyers, self.num_sellers)
+        self.market = Marketplace(self.buyers, self.sellers)
         self.current_step = 0
-        
-        # getting init state
-        initial_state = self.rl_agent.get_state(self.market.average_price)
-        return np.array(initial_state, dtype=np.float32), {}
+        self.agents = [f"seller_{i}" for i in range(self.num_sellers)]
 
-    def step(self, action):
-        # RL model provides an action 0, 1, 2, 3, 4
+        observations = {
+            f"seller_{i}": self.sellers[i].get_state(self.market.average_price)
+            for i in range(self.num_sellers)
+        }
+        return observations, {}
 
-        # --- RL Agent acts ---
-        # override the agent's brain and force it to take the action
-        price_change_percent = self.rl_agent.actions[action]
-        self.rl_agent.current_price *= (1 + price_change_percent)
-        if self.rl_agent.current_price < self.rl_agent.min_price_per_unit:
-            self.rl_agent.current_price = self.rl_agent.min_price_per_unit
-        
-        self.rl_agent.last_tick_sales = 0 # reset counter
-        
-        # rest of the market simulates one tick ---
+    def step(self, actions):
+        for i, agent_name in enumerate(self.agents):
+            action = int(actions[agent_name])
+            seller = self.sellers[i]
+            price_change_percent = seller.actions[action]
+            seller.current_price *= (1 + price_change_percent)
+            seller.current_price = max(seller.current_price, seller.min_price_per_unit)
+            seller.last_tick_sales = 0
+
         self.market.run_tick()
-        
-        # results ---
-        # reward = revenue RL agent made this step
-        reward = self.rl_agent.last_tick_sales * self.rl_agent.current_price
-        
-        # get next state for agent
-        next_state = self.rl_agent.get_state(self.market.average_price)
-        
-        # check if episode is done
+
+        rewards = {}
+        observations = {}
+        for i, agent_name in enumerate(self.agents):
+            seller = self.sellers[i]
+            rewards[agent_name] = float(seller.last_tick_sales * seller.current_price)
+            observations[agent_name] = seller.get_state(self.market.average_price)
+
         self.current_step += 1
-        done = self.current_step >= 1000 # end episode after 1000 ticks
+        terminations = {agent: self.current_step >= 1000 for agent in self.agents}
+        truncations = {agent: False for agent in self.agents}
+        
+        # Create an info dict with a key for each agent (can be empty)
+        infos = {agent: {} for agent in self.agents}
 
-        return np.array(next_state, dtype=np.float32), reward, done, False, {}
+        return observations, rewards, terminations, truncations, infos # Return the new infos dict
+
+    def render(self):
+        pass
 
 
-if __name__ == '__main__':
-    # creates training environment
-    env = MarketPlaceEnv(num_buyers=100, num_other_sellers=20)
-
-    # initializes ppo model
-    model = PPO("MlpPolicy", env, verbose=1)
-
+# 2) Training with SB3 PPO
+if __name__ == "__main__":
+    print("Creating PettingZoo ParallelEnv...")
+    parallel_env = MarketplaceEnv(num_buyers=100, num_sellers=10)
     
-    # model trains for 100,000 ticks
-    model.learn(total_timesteps=100000)
+    print("Converting PettingZoo env to SB3 VecEnv via SuperSuit...")
+    vec_env = pettingzoo_env_to_vec_env_v1(parallel_env)
+    vec_env = concat_vec_envs_v1(
+        vec_env,
+        num_vec_envs=1,
+        num_cpus=1,
+        base_class="stable_baselines3",
+    )
+    vec_env = VecMonitor(vec_env)
 
-    print("Training complete. Saving.")
-    model.save("ppo_marketplace_seller")
+    print("Initializing PPO (shared policy)...")
+    model = PPO(
+        policy="MlpPolicy",
+        env=vec_env,
+        device="cuda",
+        verbose=1,
+        n_steps=2048,
+        batch_size=64,
+        learning_rate=3e-4,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        ent_coef=0.0,
+        vf_coef=0.5,
+    )
 
-    print("Model saved as ppo_marketplace_seller.zip")
+    checkpoint_cb = CheckpointCallback(
+        save_freq=100_000,
+        save_path="./checkpoints",
+        name_prefix="ppo_marl_shared",
+    )
+
+    total_timesteps = 1_000_000
+    print(f"Training for {total_timesteps:,} timesteps...")
+    model.learn(total_timesteps=total_timesteps, callback=checkpoint_cb)
+
+    print("Saving final model...")
+    model.save("ppo_marl_shared_policy")
+    print("Done: ppo_marl_shared_policy.zip")
