@@ -5,11 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 from stable_baselines3 import PPO
 
-# Import your existing simulation classes
 from simulation import generate_agents, Marketplace
 from agents.seller import SellerAgent
 
-# --- Create a New Agent Class for the RL Model ---
 class RLSellerAgent(SellerAgent):
     def __init__(self, agent_id, inventory, min_price, starting_price, max_per_tick, model_path):
         super().__init__(agent_id, inventory, min_price, starting_price, max_per_tick)
@@ -19,11 +17,9 @@ class RLSellerAgent(SellerAgent):
 
     def choose_action(self, state):
         """ The agent's 'brain' is now the trained neural network. """
-        # The model.predict method takes the state and returns the best action
         action_index, _ = self.model.predict(state, deterministic=True)
         return action_index
 
-# --- Main Application Setup ---
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -39,17 +35,16 @@ STARTING_PRICE = 30
 MAX_PER_TICK = 10
 
 # Generate the buyers
-buyers, _ = generate_agents(6, 0) # We only need 6 buyers and 0 random sellers
+buyers, _ = generate_agents(6, 0) #
 
-# Manually create the rule-based seller with the defined stats
 rule_based_seller = SellerAgent(
-    agent_id=1001, # Give it a normal ID
+    agent_id=1001,
     inventory=START_INVENTORY,
     min_price=MIN_PRICE,
     starting_price=STARTING_PRICE,
     max_per_tick=MAX_PER_TICK
 )
-# Create and add our one special RL agent
+
 rl_agent = RLSellerAgent(
     agent_id=9999,
     inventory=START_INVENTORY,
