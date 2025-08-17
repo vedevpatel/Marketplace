@@ -91,7 +91,6 @@ class Marketplace:
             price_per_unit = m['price_per_unit']
             total_cost = quantity * price_per_unit
 
-            # --- DEBUGGING PRINTS START HERE ---
             # Print details only for high-priced sellers to avoid spamming the log
             if price_per_unit > 1000:
                 print("\n--- [DEBUG] High-Priced Transaction Check ---")
@@ -99,7 +98,6 @@ class Marketplace:
                 print(f"[DEBUG] Seller Price: ${price_per_unit:,.2f} | Quantity: {quantity}")
                 print(f"[DEBUG] Calculated Total Cost: ${total_cost:,.2f}")
                 print(f"[DEBUG] Buyer's Budget BEFORE check: ${buyer.budget:,.2f}")
-            # --- DEBUGGING PRINTS END HERE ---
 
             if buyer.budget >= total_cost and seller.inventory >= quantity:
                 if price_per_unit > 1000:
